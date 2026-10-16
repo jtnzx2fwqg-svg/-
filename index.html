@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="騎樓停車">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>基隆市騎樓開放機車停車查詢</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+:root{--sheet:rgba(242,242,247,.86);--card:#fff;--tx:#1c1c1e;--sec:#8e8e93;--sep:rgba(60,60,67,.16);--fill:rgba(118,118,128,.12);--tint:#007aff;--tintbg:rgba(0,122,255,.12);--ok:#248a3d;--okbg:rgba(52,199,89,.16);--wn:#c93400;--wnbg:rgba(255,149,0,.16)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sheet:rgba(28,28,30,.82);--card:#2c2c2e;--tx:#fff;--sec:#98989f;--sep:rgba(84,84,88,.5);--fill:rgba(118,118,128,.24);--tint:#0a84ff;--tintbg:rgba(10,132,255,.2);--ok:#30d158;--okbg:rgba(48,209,88,.18);--wn:#ff9f0a;--wnbg:rgba(255,159,10,.18)}:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.7)}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{color:var(--tx);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;letter-spacing:-.01em;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+button,a,input,.card{touch-action:manipulation}
+#map{position:fixed;inset:0;z-index:0}
+.leaflet-tile-pane{filter:saturate(.8)}
+.leaflet-bar{border:0!important;border-radius:12px!important;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.22)!important}
+.leaflet-bar a{background:var(--sheet);color:var(--tx);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.leaflet-control-attribution{background:var(--sheet)!important;color:var(--sec)!important;font-size:10px;border-radius:8px}
+.leaflet-popup-content-wrapper{border-radius:14px}
+#chip{position:fixed;z-index:4;left:12px;top:calc(env(safe-area-inset-top,0px) + 10px);padding:7px 13px;border-radius:999px;background:var(--sheet);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:0 2px 12px rgba(0,0,0,.18);font-weight:600;font-size:14px}
+#chip b{color:var(--tint)}
+#side{position:fixed;z-index:5;left:0;right:0;bottom:0;height:90%;display:flex;flex-direction:column;background:var(--sheet);-webkit-backdrop-filter:saturate(180%) blur(28px);backdrop-filter:saturate(180%) blur(28px);border-radius:22px 22px 0 0;box-shadow:0 -6px 28px rgba(0,0,0,.2);will-change:transform;transform:translate3d(0,50%,0)}
+#side.anim{transition:transform .4s cubic-bezier(.22,.9,.28,1)}
+#grab{flex:none;height:26px;display:flex;justify-content:center;align-items:center;touch-action:none;cursor:grab}
+#grab i{width:38px;height:5px;border-radius:3px;background:var(--sec);opacity:.5}
+.sh{flex:none;padding:0 14px 8px}
+#ttl{display:none;font-size:26px;font-weight:700;letter-spacing:-.02em;margin:14px 2px 10px}
+.sf{display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:12px;padding:0 12px;height:40px}
+.sf input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--tx);font:inherit;font-size:17px}
+.pills{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.pills::-webkit-scrollbar{display:none}
+.pills button{flex:none;border:0;background:var(--fill);color:var(--tx);padding:7px 14px;border-radius:999px;font:inherit;font-size:14px;font-weight:500}
+.pills button.on{background:var(--tint);color:#fff}
+#scr{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 14px calc(16px + env(safe-area-inset-bottom,0px))}
+#prog{font-size:12px;color:var(--sec);margin:0 2px 6px}
+#msg{font-size:14px;padding:10px 14px;border-radius:12px;margin-bottom:10px;background:var(--fill);color:var(--sec)}
+#msg.ok{background:var(--okbg);color:var(--ok)}#msg.no{background:var(--wnbg);color:var(--wn)}
+.card{background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);content-visibility:auto;contain-intrinsic-size:auto 104px;transition:box-shadow .15s}
+.card.on{box-shadow:0 0 0 2px var(--tint)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.b{color:#fff;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
+button.no{border:0;background:var(--tintbg);color:var(--tint);border-radius:999px;padding:5px 12px;min-height:30px;font:inherit;font-size:13px;font-weight:600}
+.r{font-size:17px;font-weight:600}
+.s{font-size:12px;color:var(--sec);margin-left:6px}
+.t{color:var(--sec);font-size:14px;margin-top:2px;word-break:break-all}
+a{color:var(--tint);font-size:14px;text-decoration:none;display:inline-block;margin-top:6px}
+footer{font-size:12px;color:var(--sec);padding:6px 2px 0}
+@media (max-width:899px){.leaflet-control-zoom{display:none}}
+@media (min-width:900px){#side{left:14px;right:auto;width:400px;top:calc(env(safe-area-inset-top,0px) + 14px);bottom:14px;height:auto;border-radius:22px;transform:none!important;box-shadow:0 8px 40px rgba(0,0,0,.25)}#grab,#chip{display:none}#ttl{display:block}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="chip">🛵 騎樓停車 <b>82</b> 處</div>
+<section id="side">
+<div id="grab"><i></i></div>
+<div class="sh">
+<h1 id="ttl">基隆騎樓機車停車</h1>
+<label class="sf"><span>🔍</span><input id="q" type="search" placeholder="路名或門牌，例如：中正路150" autocomplete="off" enterkeyhint="search"></label>
+<div class="pills" id="pills"></div>
+</div>
+<div id="scr"><div id="prog"></div><div id="msg"></div><div id="list"></div><footer>資料整理自基隆市政府「騎樓開放機車停車」路段清單，實際以市府公告為準。地圖位置由 OpenStreetMap 地址資料即時定位，精度取決於該資料，「位置約略」者請以 Google 地圖或現場為準。<br><button id="exp" class="no" style="margin-top:8px">匯出座標檔（加速用）</button></footer></div>
+</section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// [路名, 顯示文字, 起號, 迄號]；無明確範圍者省略起迄號。順序即公告編號 1–82
+const D=[
+["仁愛區",[["孝四路","1號至30號",1,30],["港西街","13號至43號",13,43],["忠一路","7號至20號",7,20],["忠二路","1號至65號",1,65],["忠二路","2號至66號",2,66],["忠四路","32號至44號",32,44],["孝二路","21號至107號",21,107],["孝二路","42號至76號",42,76],["孝三路","13號至109號",13,109],["孝三路","14號至96號",14,96],["仁一路","187號至299號",187,299],["仁二路","1號至127號",1,127],["仁五路","1號至61號",1,61],["愛二路","3號至65號",3,65],["愛二路","24號至74號",24,74]]],
+["中正區",[["義一路","1號至111號",1,111],["義一路","2號至148號",2,148],["義二路","1號至215號",1,215],["義二路","2號至258號",2,258],["信一路","154號至177號",154,177],["信二路","272號至298號",272,298],["信三路","3號至36號",3,36],["信三路","4號至43號",4,43],["信四路","2號至24號",2,24],["信四路","5號至31號",5,31],["信五路","1號至59號",1,59],["信五路","2號至30號",2,30],["信六路","3號至33號",3,33],["信六路","4號至38號",4,38],["信七路","1號至19號",1,19],["信七路","2號至22號",2,22],["正義路","1號至73號",1,73],["正義路","2號至88號",2,88],["中正路","2號至164號",2,164],["中正路","341號至623號",341,623],["中正路","482號至822號",482,822],["武昌街","1號至23號",1,23],["武昌街","2號至140號",2,140],["祥豐街","711號至853號",711,853],["中正路","97號至339號",97,339],["中正路","186號至478號",186,478],["祥豐街","1號至565號",1,565],["祥豐街","2號至216號",2,216]]],
+["信義區",[["信一路","1號至150號",1,150],["信二路","1號至281號",1,281],["信二路","2號至16號",2,16],["義四路","1號至27號",1,27],["義四路","2號至26號",2,26],["深溪路","沿線兩側騎樓"],["深澳坑路","166號（凱撒社區前騎樓）",166,166],["東信路","40號至162號",40,162],["東信路","5號至81之2號",5,81],["東信路","37號至45號",37,45],["深澳坑路","8之41號至8之50號、10之6號、10之7號"],["義六路","15號、17號",15,17]]],
+["七堵區",[["福一街","53號至99號",53,99],["福一街","58號至110號",58,110],["福二街","25號至107號",25,107],["福二街","82號至100號",82,100],["百一街","161號至173號",161,173]]],
+["暖暖區",[["源遠路","296號至300號",296,300],["源遠路","341號至349號",341,349],["暖暖街","102號至108號",102,108],["暖暖街","190號至194號",190,194],["東勢街","6至6之31號",6,6]]],
+["安樂區",[["麥金路","2號至66號",2,66],["麥金路","160號至220號",160,220],["樂利三街32巷","37至47號",37,47],["安樂路一段","137號至177號",137,177],["安一路","250號至260號",250,260],["安樂路二段","82號至132號",82,132],["安樂路二段","131號至235號",131,235],["安樂路一段","260號至278號",260,278]]],
+["中山區",[["成功二路","43號至63號",43,63],["復興路","317號至323號",317,323],["安一路","18號至42號",18,42],["安一路","71號至87號",71,87],["西定路","28號至40號",28,40],["中和路","164巷13至19號、16至26號、168巷13弄1至37號、167至198號之4"],["德安路","2-2號、2-3號、2-5號、2-6號、2-10號、2-11號、2-12號、2-14號、2-15號"],["中和路","164巷1號、166號、166-1至166-6號"],["成功二路","65號",65,65]]]
+];
+const COL={仁愛區:"#ff2d55",中正區:"#007aff",信義區:"#34c759",七堵區:"#ff9500",暖暖區:"#af52de",安樂區:"#30b0c7",中山區:"#5856d6"};
+let n=0;const rows=[];
+for(const [dist,l] of D)for(const [road,txt,lo,hi] of l)
+  rows.push({id:++n,dist,road,txt,lo,hi,side:lo==null?"":(lo%2==hi%2?(lo%2?"單號側":"雙號側"):"")});
+const norm=s=>s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/臺/g,"台").replace(/\s+/g,"").replace(/號$/,"");
+const inRange=(r,x)=>r.lo!=null&&x>=r.lo&&x<=r.hi&&(r.lo%2!=r.hi%2||x%2==r.lo%2);
+let dist="all";
+const $=id=>document.getElementById(id);
+const pills=$("pills");
+[["all","全部 (82)"],...D.map(([d,l])=>[d,`${d} (${l.length})`])].forEach(([v,t])=>{
+  const b=document.createElement("button");b.textContent=t;b.dataset.v=v;if(v=="all")b.className="on";
+  b.onclick=()=>{dist=v;pills.querySelectorAll("button").forEach(x=>x.className=x==b?"on":"");render()};
+  pills.appendChild(b)});
+function render(){
+  const q=norm($("q").value),msg=$("msg");let out=rows.filter(r=>dist=="all"||r.dist==dist),cls="",text="";
+  const m=q.match(/^(\D.*?)(\d+)$/);
+  if(m){
+    const name=m[1],x=+m[2],byName=out.filter(r=>r.n.includes(name));
+    out=byName.filter(r=>inRange(r,x));
+    if(out.length){cls="ok";text=`✅ ${name}${x}號 位於 ${out.length} 個開放路段內`}
+    else if(byName.length){cls="no";text=`${name}在清單中，但 ${x} 號不在開放範圍內（請以公告為準）`}
+    else{cls="no";text=`清單中沒有「${name}」`}
+  }else{
+    if(q)out=out.filter(r=>r.h.includes(q));
+    text=`符合 ${out.length} 筆路段`;
+  }
+  msg.className=cls;msg.textContent=text;
+  $("list").innerHTML=out.map(r=>{
+    const mapQ=encodeURIComponent("基隆市"+r.dist+r.road+(r.lo!=null?r.lo+"號":""));
+    return `<div class="card" data-id="${r.id}"><div class="top"><span class="b" style="background:${COL[r.dist]}">${r.dist}</span><button class="no" data-id="${r.id}" aria-label="在地圖上顯示編號 ${r.id}">📍 編號 ${r.id}</button></div>
+<div><span class="r">${r.road}</span><span class="s">${r.side}</span></div><div class="t">${r.txt}</div><div class="s st" style="margin:3px 0 0">${status(r)}</div>
+<a href="https://www.google.com/maps/search/?api=1&query=${mapQ}" target="_blank" rel="noopener">在 Google 地圖開啟 ↗</a></div>`}).join("")
+    ||'<div class="card t">找不到符合的路段</div>';
+  if(cur){const e=document.querySelector(`.card[data-id="${cur}"]`);if(e)e.classList.add("on")}
+  syncMap(out);
+}
+rows.forEach(r=>{r.h=norm(r.dist+r.road+r.txt);r.n=norm(r.dist+r.road);r.pts=[];r.prec=false;r.done=false});
+const status=r=>!r.done?"定位中…":r.prec?"📍 以 OSM 門牌定位":r.pts.length?"⚠️ 僅路名定位，位置約略":"❓ 未能定位，請用 Google 地圖";
+const map=L.map("map",{preferCanvas:true,zoomControl:false}).setView([25.1276,121.7391],13);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,keepBuffer:3,updateWhenZooming:false,attribution:"© OpenStreetMap"}).addTo(map);
+L.control.zoom({position:"topright"}).addTo(map);map.attributionControl.setPosition("topright");
+let cache={};try{cache=JSON.parse(localStorage.getItem("kl-geo-v1")||"{}")}catch(e){}
+const ready=fetch("coords.json").then(x=>x.ok?x.json():{}).then(j=>{for(const k in j)if(!(k in cache))cache[k]=j[k]}).catch(()=>{});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function geo(q){
+  await ready;
+  if(q in cache)return cache[q];
+  await sleep(1100);
+  try{
+    const j=await(await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=tw&viewbox=121.60,25.20,121.82,25.05&bounded=1&accept-language=zh-TW&q="+encodeURIComponent(q))).json();
+    const v=j[0]?{lat:+j[0].lat,lng:+j[0].lon,h:!!(j[0].address&&j[0].address.house_number)}:null;
+    cache[q]=v;try{localStorage.setItem("kl-geo-v1",JSON.stringify(cache))}catch(e){}
+    return v;
+  }catch(e){return null}
+}
+let vis=new Set(),cur=null;
+setTimeout(()=>map.invalidateSize(),0);addEventListener("resize",()=>map.invalidateSize());
+function syncMap(out){
+  vis=new Set(out.map(r=>r.id));const pts=[];
+  rows.forEach(r=>{if(!r.layer)return;if(vis.has(r.id)){if(!r.shown){r.layer.addTo(map);r.shown=true}pts.push(...r.ll)}else if(r.shown){map.removeLayer(r.layer);r.shown=false}});
+  if(pts.length&&out.length<82)map.fitBounds(pts,{...pad(),maxZoom:17});
+  want(out);
+}
+function draw(r){
+  if(!r.pts.length)return;
+  const c=COL[r.dist],ll=r.pts.map(p=>[p.lat,p.lng]),g=L.featureGroup();
+  if(r.prec&&ll.length>1)L.polyline(ll,{color:c,weight:5,opacity:.8}).addTo(g);
+  ll.forEach(p=>L.circleMarker(p,{radius:r.prec?7:9,color:"#fff",weight:2,fillColor:c,fillOpacity:r.prec?.95:.35,dashArray:r.prec?null:"3"}).addTo(g));
+  g.on("click",()=>focusRow(r,true));g.bindPopup(`<b>${r.dist} ${r.road}</b><br>${r.txt}<br>編號 ${r.id}${r.prec?"":"<br>⚠️ 位置約略"}`);
+  r.layer=g;r.ll=ll;if(vis.has(r.id)){g.addTo(map);r.shown=true}
+}
+async function locate(r){
+  const base="基隆市"+r.dist+r.road,nums=r.lo!=null?[...new Set([r.lo,r.hi])]:[];
+  for(const x of nums){const p=await geo(base+x+"號");if(p&&p.h)r.pts.push(p)}
+  r.prec=r.pts.length>0;
+  if(!r.pts.length){const p=await geo(base);if(p)r.pts.push(p)}
+  r.done=true;draw(r);
+  if(cur===r.id)focusRow(r);
+  const el=document.querySelector(`.card[data-id="${r.id}"] .st`);if(el)el.textContent=status(r);
+}
+function focusRow(r,fromMap){
+  snap(fromMap?1:2);
+  document.querySelectorAll(".card.on").forEach(x=>x.classList.remove("on"));
+  const el=document.querySelector(`.card[data-id="${r.id}"]`);cur=r.id;
+  if(el){el.classList.add("on");if(fromMap)el.scrollIntoView({block:"nearest",behavior:"smooth"})}
+  if(fromMap)return;
+  if(!r.layer){want([r]);return}
+  map.fitBounds(r.ll,{...pad(),maxZoom:18});r.layer.openPopup();
+}
+$("list").addEventListener("click",e=>{
+  if(e.target.closest("a"))return;
+  const c=e.target.closest(".card");if(c)focusRow(rows[c.dataset.id-1]);
+});
+const pending=[...rows];let running=false;
+function want(rs){
+  const ids=new Set(rs.map(r=>r.id));
+  const rest=pending.filter(r=>!ids.has(r.id));
+  pending.length=0;pending.push(...rs.filter(r=>!r.done&&!r.busy),...rest);
+  pump();
+}
+async function pump(){
+  if(running)return;running=true;
+  while(pending.length){
+    const r=pending.shift();if(r.done)continue;
+    if(document.hidden)await new Promise(ok=>addEventListener("visibilitychange",ok,{once:true}));
+    r.busy=true;await locate(r);r.busy=false;
+    const d=rows.filter(x=>x.done).length;
+    $("prog").textContent=d<rows.length?`地圖定位中 ${d}/${rows.length}（可見路段優先，結果會快取）`:"地圖定位完成";
+  }
+  running=false;
+  if(!$("q").value&&dist=="all"){const all=rows.flatMap(r=>r.ll||[]);if(all.length)map.fitBounds(all,pad())}
+}
+$("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(cache)],{type:"application/json"}));a.download="coords.json";a.click()};
+if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js");
+const side=$("side"),isD=()=>matchMedia("(min-width:900px)").matches;
+let pos=1,H=0,Y=0,g0=null;
+const snaps=()=>{H=side.offsetHeight;return[0,H*.5,H-150]};
+function snap(i,anim=true){
+  if(isD())return;pos=i;Y=snaps()[i];
+  side.classList.toggle("anim",anim);side.style.transform=`translate3d(0,${Y}px,0)`;
+}
+const pad=()=>isD()?{paddingTopLeft:[430,60],paddingBottomRight:[40,40]}:{paddingTopLeft:[20,70],paddingBottomRight:[20,Math.min(H-Y+20,innerHeight*.5)]};
+const gr=$("grab");
+gr.addEventListener("pointerdown",e=>{g0={y:e.clientY,Y,last:e.clientY,lt:e.timeStamp,v:0};gr.setPointerCapture(e.pointerId);side.classList.remove("anim")});
+gr.addEventListener("pointermove",e=>{
+  if(!g0)return;
+  Y=Math.min(snaps()[2],Math.max(0,g0.Y+e.clientY-g0.y));
+  g0.v=(e.clientY-g0.last)/Math.max(1,e.timeStamp-g0.lt);g0.last=e.clientY;g0.lt=e.timeStamp;
+  side.style.transform=`translate3d(0,${Y}px,0)`;
+});
+const endDrag=()=>{
+  if(!g0)return;const s=snaps(),p=Y+g0.v*180;let b=0;
+  s.forEach((v,i)=>{if(Math.abs(v-p)<Math.abs(s[b]-p))b=i});g0=null;snap(b);
+};
+gr.addEventListener("pointerup",endDrag);gr.addEventListener("pointercancel",endDrag);
+addEventListener("resize",()=>snap(pos,false));
+snap(1,false);
+$("q").addEventListener("focus",()=>snap(0));
+let t;$("q").addEventListener("input",()=>{clearTimeout(t);t=setTimeout(render,150)});
+render();
+</script>
+</body>
+</html>
